@@ -9,12 +9,41 @@ import re
 import time
 import yaml
 
-from detect_secrets.plugins import keyword
 from password_strength import PasswordStats
-
 
 logger = logging.getLogger(__name__)
 
+DENYLIST = (
+    'api_?key',
+    'auth_?key',
+    'service_?key',
+    'account_?key',
+    'db_?key',
+    'database_?key',
+    'priv_?key',
+    'private_?key',
+    'client_?key',
+    'db_?pass',
+    'database_?pass',
+    'key_?pass',
+    'key_?data',
+    'password',
+    'passwd',
+    'pass',
+    'pwd',
+    'secret',
+    'contraseña',
+    'contrasena',
+)
+# Includes ], ', " as closing
+CLOSING = r'[]\'"]{0,2}'
+AFFIX_REGEX = r'\w*'
+DENYLIST_REGEX = r'|'.join(DENYLIST)
+# Support for suffix after keyword i.e. password_secure = "value"
+DENYLIST_REGEX = r'({denylist}){suffix}'.format(
+    denylist=DENYLIST_REGEX,
+    suffix=AFFIX_REGEX,
+)
 
 def gen_sample_password():
     colours = ["red", "blue", "green", "yellow", "purple", "pink", "orange", "brown"]
@@ -85,15 +114,18 @@ def is_password(content):
     return stats.strength() > 0.48
 
 
+def is_path(content: str):
+    # Rather conservative on purpose to avoid a false
+    # positive
+    return bool(re.match(r"^(|~)[a-z0-9_/\.-]+$", content, flags=re.IGNORECASE))
 
 
-def sensitive_field_name(name: str) -> bool:
-    return re.search(keyword.DENYLIST_REGEX_WITH_PREFIX, name) is not None
+def is_secret(name: str) -> bool:
+    return re.search(DENYLIST_REGEX, name) is not None
 
 
 def remove_email(value: str) -> str:
     return re.sub(r".*(\w+@[a-z\.]+[a-z]{2,}).*", gen_email_address, value)
-
 
 
 common_ipv4_networks = [
@@ -165,21 +197,9 @@ def anonymize_field(value: str, name) -> str:
         return redact_ip_address(value)
     elif is_email_address(value):
         return remove_email(value)
-
-    if sensitive_field_name(name):
-        if is_path(value):
-            return value
-        elif is_date(value):
-            return value
-        elif is_password(value):
-            return gen_sample_password()
+    if is_secret(name):
+        return "{{ }}"
     return value
-
-
-def is_path(content: str):
-    # Rather conservative on purpose to avoid a false
-    # positive
-    return bool(re.match(r"^(|~)[a-z0-9_/\.-]+$", content, flags=re.IGNORECASE))
 
 
 def walker(o, key_name=''):
@@ -206,8 +226,8 @@ def anonymize(predictions):
     return [cleanup(p) for p in predictions]
 
 
-
 def benchmark():
+    # will be removed
     cpt = 0
     duration = 0
     with open("/home/goneri/Downloads/awft_v2.4.2_train.json", "r") as fd:

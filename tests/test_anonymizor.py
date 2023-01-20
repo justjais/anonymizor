@@ -9,7 +9,7 @@ from anonymizor.anonymizor import (
     is_email_address,
     is_date,
     is_password,
-    sensitive_field_name,
+    is_secret,
     redact_ipv4_address,
     remove_email,
     redact_ipv4_address,
@@ -52,12 +52,14 @@ def test_is_password() -> bool:
     assert is_password("1!!3@foobar%") is True
 
 
-def test_sensitive_field_name():
-    assert sensitive_field_name("login") is False
-    assert sensitive_field_name("password") is True
-    assert sensitive_field_name("passwd") is True
-    assert sensitive_field_name("db_passwd") is True
-    assert sensitive_field_name("db_passwd") is True
+def is_secret():
+    assert is_secret("login") is False
+    assert is_secret("username") is False
+    assert is_secret("password") is True
+    assert is_secret("passwd") is True
+    assert is_secret("db_passwd") is True
+    assert is_secret("pass") is True
+    assert is_secret("key_data") is True
 
 
 def test_remove_email():
