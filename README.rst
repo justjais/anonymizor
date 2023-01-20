@@ -20,7 +20,7 @@ Anonymizor
 
 
 
-Library to clean up Ansible tasks from any Personally Identifiable Information (PII)
+Library to clean up Ansible tasks from any Personally Identifiable Information (PII), Secrets and comments.
 
 
 * Free software: Apache Software License 2.0
